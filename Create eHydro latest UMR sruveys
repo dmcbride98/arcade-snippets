@@ -1,0 +1,71 @@
+// Uses the public eHydro survey polygon feature layer to create a customized list of surveys
+
+// Create feature set from the eHydro layer
+var portal = Portal('https://www.arcgis.com');
+var fs = FeatureSetByPortalItem(portal, '80a394bae6b547f1b5788074261e11f1',0,['surveyjobidpk','surveytype','channelareaidfk','usacedistrictcode','surveydatestart','plotsheetlocation'],false);
+
+// Filter the feature set to only include MVR surveys in Upper Mississippi River channels (does not include dam scour surveys)
+var mvrStr = 'CEMVR_UM%';
+var filteredFs = Filter(fs, 'channelareaidfk LIKE @mvrStr');
+
+// Define schema for final list container as dictionary
+var displayDict = {
+  'fields': [{'name': 'surveyName', 'type': 'esriFieldTypeString'},
+  {'name': 'surveyDate', 'type': 'esriFieldTypeString'},
+  {'name': 'surveyDateDate', 'type': 'esriFieldTypeDate'},
+  {'name': 'surveyLink', 'type': 'esriFieldTypeString'},
+  {'name': 'surveyPool', 'type': 'esriFieldTypeString'},
+  {'name': 'surveyType', 'type': 'esriFieldTypeString'},
+  {'name': 'surveyRMUp', 'type': 'esriFieldTypeString'},
+  {'name': 'surveyRMDn', 'type': 'esriFieldTypeString'},],
+  'geometryType': '',
+  'features': []
+};
+
+// Define lookup dictionaries for survey type and pool/channel codes
+// *NOTE: pool code of 'DIS' is an artifact of a period where survey names where changed on the Enterprise side. To be address later...
+var surveyTypeDict = {
+  'BD': 'Before Dredging',
+  'AD': 'After Dredging',
+  'CS': 'Channel Condition',
+  'OT': 'Other Type'
+}
+
+var surveyPoolDict = {
+  '11': 'Pool 11',
+  '12': 'Pool 12',
+  '13': 'Pool 13',
+  '14': 'Pool 14',
+  '15': 'Pool 15',
+  '16': 'Pool 16',
+  '17': 'Pool 17',
+  '18': 'Pool 18',
+  '19': 'Pool 19',
+  '20': 'Pool 20',
+  '21': 'Pool 21',
+  '22': 'Pool 22',
+  '24': 'Pool 24',
+  'DIS': 'OLD SURVEY'
+}
+
+// Build custom list from feature set attributes
+
+var index = 0;
+
+for (var feature in filteredFs) {
+  displayDict.features[index] = {
+    'attributes': {
+      'surveyName': feature['surveyjobidpk'],
+      'surveyDate': Text(feature['surveydatestart'], 'MMMM D, Y'),
+      'surveyDateDate': feature['surveydatestart'],
+      'surveyLink': feature['plotsheetlocation'],
+      'surveyPool': surveyPoolDict[Split(Text(feature['surveyjobidpk']),'_')[1]],
+      'surveyType': surveyTypeDict[feature['surveytype']],
+      'surveyRMUp': Text((Number(Right(Split(Text(feature['surveyjobidpk']),'_')[5],4),'#000'))/10,'###.0'),
+      'surveyRMDn': Text((Number(Left(Split(Text(feature['surveyjobidpk']),'_')[5],4),'#000'))/10,'###.0')
+    }
+  }
+  index++;
+}
+
+return FeatureSet(displayDict);
