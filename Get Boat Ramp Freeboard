@@ -1,0 +1,57 @@
+// WORKING DRAFT
+
+// load boat ramp feature layer as feature set
+var mvrPortal = Portal('https://geoportal.mvr.usace.army.mil/b5portal');
+var agolPortal = Portal('https://www.arcgis.com');
+var brFs = FeatureSetByPortalItem(mvrPortal, '86a60565b05f45cb8570b49a6b5b478a',0,['SDSFEATURENAME','MAXIMUMELEVATION','BOATRAMPIDPK','RIVERMILE','WATERWAY',],false);
+var ilString = 'ILLINOIS RIVER'
+var umString = 'UPPER MISSISSIPPI'
+brFs = Filter(brFs, '(WATERWAY = @ilString OR WATERWAY = @umString) AND MAXIMUMELEVATION IS NOT NULL');
+var linkFs = FeatureSetByPortalItem(mvrPortal, '105202810dac4f079a1b64856a3b58d5',0,['boatrampidpk','poolelevation','refgageid','refgagerm','refgageps',],false);
+// --unique values only needed to filter gages, not needed to join--
+//var uniqueGageIdFs = Distinct(linkFs,'refgageid');
+//var uniqueGageIdArray = [];
+//for (var f in uniqueGageIdFs) {
+//  Push(uniqueGageIdArray,Dictionary(Text(f)))
+//}
+var gageFs = FeatureSetByPortalItem(agolPortal, '81c5a9f2a2704d54a49042a44eefa5d3',0,['stationid','stage_ft','name','stationurl'],false);
+//gageFs = Filter(gageFs,'WHERE stationid IN @uniqueGageIdArray');
+
+// Define combined schema
+var displayDict = {
+  'fields': [{'name': 'rampName', 'type': 'esriFieldTypeString'},
+  {'name': 'rampTopStage', 'type': 'esriFieldTypeDouble'},
+  {'name': 'rampRM', 'type': 'esriFieldTypeDouble'},
+  {'name': 'rampRiver', 'type': 'esriFieldTypeString'},
+  {'name': 'gageId', 'type': 'esriFieldTypeString'},
+  {'name': 'gageRM', 'type': 'esriFieldTypeDouble'},
+  {'name': 'gageStage', 'type': 'esriFieldTypeDouble'},
+  {'name': 'gageName', 'type': 'esriFieldTypeString'},],
+  'geometryType': '',
+  'features': []
+};
+var index = 0;
+
+for (var feat in brFs) {
+  var brLinkId = feat['BOATRAMPIDPK']
+  var gageLinkId = First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgageid']
+  console('Boat Ramp ID: ',brLinkId)
+  console('Gage Link ID: ',gageLinkId)
+  displayDict.features[index] = {
+    'attributes': {
+      'rampName': feat['SDSFEATURENAME'],
+      'rampTopStage': (feat['MAXIMUMELEVATION'] - (First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['poolelevation'])),
+      'rampRM': feat['RIVERMILE'],
+      'rampRiver': feat['WATERWAY'],
+      'gageId': Right(gageLinkId, 5),
+      'gageRM': First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgagerm'],
+      'gageStage': First(Filter(gageFs, 'stationid = @gageLinkId'))['stage_ft'] - First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgageps'],
+      'gageName': First(Filter(gageFs, 'stationid = @gageLinkId'))['name']
+    }
+  }
+  index++;
+}
+
+return FeatureSet(displayDict);
+// load subset of gages feature layer as feature set
+// define output schema for joined and calculated feature set
