@@ -1,4 +1,6 @@
-// WORKING DRAFT
+// Write an expression that returns a FeatureSet.
+// Documentation: https://arcg.is/3c419TD
+// Samples: https://arcg.is/38SEWWz
 
 // load boat ramp feature layer as feature set
 var mvrPortal = Portal('https://geoportal.mvr.usace.army.mil/b5portal');
@@ -26,7 +28,8 @@ var displayDict = {
   {'name': 'gageId', 'type': 'esriFieldTypeString'},
   {'name': 'gageRM', 'type': 'esriFieldTypeDouble'},
   {'name': 'gageStage', 'type': 'esriFieldTypeDouble'},
-  {'name': 'gageName', 'type': 'esriFieldTypeString'},],
+  {'name': 'gageName', 'type': 'esriFieldTypeString'},
+  {'name': 'rampFreeboard', 'type': 'esriFieldTypeDouble'}],
   'geometryType': '',
   'features': []
 };
@@ -35,18 +38,21 @@ var index = 0;
 for (var feat in brFs) {
   var brLinkId = feat['BOATRAMPIDPK']
   var gageLinkId = First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgageid']
+  var rampStageOverPool = (feat['MAXIMUMELEVATION'] - (First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['poolelevation']))
+  var gageStageOverPool = First(Filter(gageFs, 'stationid = @gageLinkId'))['stage_ft'] - First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgageps']
   console('Boat Ramp ID: ',brLinkId)
   console('Gage Link ID: ',gageLinkId)
   displayDict.features[index] = {
     'attributes': {
       'rampName': feat['SDSFEATURENAME'],
-      'rampTopStage': (feat['MAXIMUMELEVATION'] - (First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['poolelevation'])),
+      'rampTopStage': rampStageOverPool,
       'rampRM': feat['RIVERMILE'],
       'rampRiver': feat['WATERWAY'],
       'gageId': Right(gageLinkId, 5),
       'gageRM': First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgagerm'],
-      'gageStage': First(Filter(gageFs, 'stationid = @gageLinkId'))['stage_ft'] - First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgageps'],
-      'gageName': First(Filter(gageFs, 'stationid = @gageLinkId'))['name']
+      'gageStage': gageStageOverPool,
+      'gageName': First(Filter(gageFs, 'stationid = @gageLinkId'))['name'],
+      'rampFreeboard': rampStageOverPool - gageStageOverPool
     }
   }
   index++;
