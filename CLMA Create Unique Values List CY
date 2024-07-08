@@ -1,0 +1,4 @@
+var portal = Portal('https://arcportal-ucop-corps.usace.army.mil/s0portal/');
+var fs = FeatureSetByPortalItem(portal,'8aa95c4c4acd4cf3b59c49dce69a22b4',0,['contract_part'],false);
+var disYear = Distinct(fs,'contract_part')
+return disYear
