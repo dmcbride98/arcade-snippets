@@ -1,19 +1,44 @@
+// creates copy of feature set in memory
+function Memorize(fs) {
+  var temp_dict = {
+    fields: Schema(fs)['fields'],
+    geometryType: '',
+    features: []
+  }
+  for (var f in fs)  {
+    var attrs = {}
+    for (var attr in f) {
+      attrs[attr] = IIf(TypeOf(f[attr]) == 'Date', Number(f[attr]), f[attr])
+    }
+    Push(
+      temp_dict['features'],
+      {attributes: attrs}
+    )
+  }
+  return FeatureSet(temp_dict)
+}
+
 // load boat ramp feature layer as feature set
 var mvrPortal = Portal('https://geoportal.mvr.usace.army.mil/b5portal');
 var agolPortal = Portal('https://www.arcgis.com');
-var brFs = FeatureSetByPortalItem(mvrPortal, '86a60565b05f45cb8570b49a6b5b478a',0,['SDSFEATURENAME','MAXIMUMELEVATION','BOATRAMPIDPK','RIVERMILE','WATERWAY',],false);
+var brFs = Memorize(FeatureSetByPortalItem(mvrPortal, '86a60565b05f45cb8570b49a6b5b478a',0,['SDSFEATURENAME','MAXIMUMELEVATION','BOATRAMPIDPK','RIVERMILE','WATERWAY',],false));
 var ilString = 'ILLINOIS RIVER'
 var umString = 'UPPER MISSISSIPPI'
 var dpString = 'DES PLAINES RIVER'
 brFs = Filter(brFs, '(WATERWAY = @ilString OR WATERWAY = @umString OR WATERWAY = @dpString) AND MAXIMUMELEVATION IS NOT NULL');
-var linkFs = FeatureSetByPortalItem(mvrPortal, '105202810dac4f079a1b64856a3b58d5',0,['boatrampidpk','poolelevation','refgageid','refgagerm','refgageps',],false);
-// --unique values only needed to filter gages, not needed to join--
+
+// load boat ramp to gage link table as feature set
+var linkFs = Memorize(FeatureSetByPortalItem(mvrPortal, '105202810dac4f079a1b64856a3b58d5',0,['boatrampidpk','poolelevation','refgageid','refgagerm','refgageps',],false));
+// unique gage ID values
 //var uniqueGageIdFs = Distinct(linkFs,'refgageid');
 //var uniqueGageIdArray = [];
 //for (var f in uniqueGageIdFs) {
-//  Push(uniqueGageIdArray,Dictionary(Text(f)))
+//  Push(uniqueGageIdArray,f['refgageid'])
 //}
-var gageFs = FeatureSetByPortalItem(agolPortal, '81c5a9f2a2704d54a49042a44eefa5d3',0,['stationid','stage_ft','name','stationurl'],false);
+
+// load AGOL gages (NWS Water Prediction Service) as feature set, then convert to dictionary in memory
+var gageFs = Memorize(FeatureSetByPortalItem(agolPortal, '81c5a9f2a2704d54a49042a44eefa5d3',0,['stationid','stage_ft','name','stationurl'],false));
+
 //gageFs = Filter(gageFs,'WHERE stationid IN @uniqueGageIdArray');
 
 // Define combined schema
@@ -37,24 +62,20 @@ for (var feat in brFs) {
   var gageLinkId = First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgageid']
   var rampStageOverPool = (feat['MAXIMUMELEVATION'] - (First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['poolelevation']))
   var gageStageOverPool = First(Filter(gageFs, 'stationid = @gageLinkId'))['stage_ft'] - First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgageps']
-  console('Boat Ramp ID: ',brLinkId)
-  console('Gage Link ID: ',gageLinkId)
   displayDict.features[index] = {
     'attributes': {
       'rampName': feat['SDSFEATURENAME'],
-      'rampTopStage': rampStageOverPool,
-      'rampRM': feat['RIVERMILE'],
+      'rampTopStage': Round(rampStageOverPool,2),
+      'rampRM': Round(feat['RIVERMILE'],1),
       'rampRiver': feat['WATERWAY'],
       'gageId': Right(gageLinkId, 5),
       'gageRM': First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['refgagerm'],
-      'gageStage': gageStageOverPool,
+      'gageStage': Round(gageStageOverPool,2),
       'gageName': First(Filter(gageFs, 'stationid = @gageLinkId'))['name'],
-      'rampFreeboard': rampStageOverPool - gageStageOverPool
+      'rampFreeboard': Round(rampStageOverPool - gageStageOverPool,2)
     }
   }
   index++;
 }
 
 return FeatureSet(displayDict);
-// load subset of gages feature layer as feature set
-// define output schema for joined and calculated feature set
