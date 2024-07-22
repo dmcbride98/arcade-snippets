@@ -1,0 +1,78 @@
+// Uses existing internal boat ramp layer from EGIS DB, water level report produced by EC-HW for OD-T use in SANDMAN,
+// and link lookup table created by OD-T to link the correct gages to each ramp and place on a common datum (pool elevation).Infinity
+
+// creates copy of feature set in memory
+function Memorize(fs) {
+  var temp_dict = {
+    fields: Schema(fs)['fields'],
+    geometryType: '',
+    features: []
+  }
+  for (var f in fs)  {
+    var attrs = {}
+    for (var attr in f) {
+      attrs[attr] = IIf(TypeOf(f[attr]) == 'Date', Number(f[attr]), f[attr])
+    }
+    Push(
+      temp_dict['features'],
+      {attributes: attrs}
+    )
+  }
+  return FeatureSet(temp_dict)
+}
+
+// load boat ramp feature layer as feature set in memory
+var mvrPortal = Portal('https://geoportal.mvr.usace.army.mil/b5portal');
+var agolPortal = Portal('https://www.arcgis.com');
+var brFs = Memorize(FeatureSetByPortalItem(mvrPortal, '86a60565b05f45cb8570b49a6b5b478a',0,['SDSFEATURENAME','MAXIMUMELEVATION','BOATRAMPIDPK','RIVERMILE','WATERWAY',],false));
+var ilString = 'ILLINOIS RIVER'
+var umString = 'UPPER MISSISSIPPI'
+var dpString = 'DES PLAINES RIVER'
+brFs = Filter(brFs, '(WATERWAY = @ilString OR WATERWAY = @umString OR WATERWAY = @dpString) AND MAXIMUMELEVATION IS NOT NULL');
+
+// load boat ramp to gage link table as feature set in memory
+var linkFs = Memorize(FeatureSetByPortalItem(mvrPortal, 'ab886a6fb32e4adaa319bf7ab2cbe7a9',0,['boatrampidpk','poolelevation','upgagename','upgageps','dngagename','dngageps'],false));
+
+// load gage report from AGOL (MVR EC-HW produced) as feature set in memory
+var gageFs = Memorize(FeatureSetByPortalItem(agolPortal, 'd98f457ae5cf40d9b099523a2ac10a4f',0,['Gages','Stage_Today','Stg_7days','Stg_14days','River_Mile',],false));
+
+// Define combined schema
+var displayDict = {
+  'fields': [{'name': 'rampName','alias': 'Ramp Name', 'type': 'esriFieldTypeString'},
+  {'name': 'rampTopStage','alias': 'Ramp Max Height Above Pool', 'type': 'esriFieldTypeDouble'},
+  {'name': 'rampRM','alias': 'Ramp River Mile', 'type': 'esriFieldTypeDouble'},
+  {'name': 'rampRiver','alias': 'Ramp River', 'type': 'esriFieldTypeString'},
+  {'name': 'rampFreeboardToday','alias': 'Ramp Freeboard Today', 'type': 'esriFieldTypeDouble'},
+  {'name': 'rampFreeboard7Day','alias': 'Ramp Freeboard 7Day', 'type': 'esriFieldTypeDouble'}],
+  'geometryType': '',
+  'features': []
+};
+var index = 0;
+
+for (var feat in brFs) {
+  var brLinkId = feat['BOATRAMPIDPK'];
+  var rampStageOverPool = (feat['MAXIMUMELEVATION'] - (First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['poolelevation']));
+  var upGageLinkId = First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['upgagename'];
+  var dnGageLinkId = First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['dngagename'];
+  var upGageStageOverPool = First(Filter(gageFs, 'Gages = @upGageLinkId'))['Stage_Today'] - First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['upgageps'];
+  var dnGageStageOverPool = First(Filter(gageFs, 'Gages = @dnGageLinkId'))['Stage_Today'] - First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['dngageps'];
+  var upGageStageOverPool7Day = First(Filter(gageFs, 'Gages = @upGageLinkId'))['Stg_7days'] - First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['upgageps'];
+  var dnGageStageOverPool7Day = First(Filter(gageFs, 'Gages = @dnGageLinkId'))['Stg_7days'] - First(Filter(linkFs, 'boatrampidpk = @brLinkId'))['dngageps'];
+  var upGageRM = First(Filter(gageFs, 'Gages = @upGageLinkId'))['River_Mile'];
+  var dnGageRM = First(Filter(gageFs, 'Gages = @dnGageLinkId'))['River_Mile'];
+  var reachSlope = (upGageStageOverPool-dnGageStageOverPool) / (upGageRM-dnGageRM);
+  var reachSlope7Day = (upGageStageOverPool7Day-dnGageStageOverPool7Day) / (upGageRM-dnGageRM);
+  displayDict.features[index] = {
+    'attributes': {
+      'rampName': feat['SDSFEATURENAME'],
+      'rampTopStage': Round(rampStageOverPool,2),
+      'rampRM': Round(feat['RIVERMILE'],1),
+      'rampRiver': feat['WATERWAY'],
+      'rampFreeboardToday': Round((upGageStageOverPool-((upGageRM-(Round(feat['RIVERMILE'],1)))*reachSlope))-rampStageOverPool,2),
+      'rampFreeboard7Day': Round((upGageStageOverPool7Day-((upGageRM-(Round(feat['RIVERMILE'],1)))*reachSlope7Day))-rampStageOverPool,2)
+    }
+  }
+  index++;
+}
+
+return FeatureSet(displayDict);
