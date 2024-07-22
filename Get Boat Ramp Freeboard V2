@@ -38,12 +38,12 @@ var gageFs = Memorize(FeatureSetByPortalItem(agolPortal, 'd98f457ae5cf40d9b09952
 
 // Define combined schema
 var displayDict = {
-  'fields': [{'name': 'rampName','alias': 'Ramp Name', 'type': 'esriFieldTypeString'},
-  {'name': 'rampTopStage','alias': 'Ramp Max Height Above Pool', 'type': 'esriFieldTypeDouble'},
-  {'name': 'rampRM','alias': 'Ramp River Mile', 'type': 'esriFieldTypeDouble'},
-  {'name': 'rampRiver','alias': 'Ramp River', 'type': 'esriFieldTypeString'},
-  {'name': 'rampFreeboardToday','alias': 'Ramp Freeboard Today', 'type': 'esriFieldTypeDouble'},
-  {'name': 'rampFreeboard7Day','alias': 'Ramp Freeboard 7Day', 'type': 'esriFieldTypeDouble'}],
+  'fields': [{'name': 'rampName', 'alias': 'Ramp Name', 'type': 'esriFieldTypeString'},
+  {'name': 'rampTopStage', 'alias': 'Ramp Max Height Above Pool', 'type': 'esriFieldTypeDouble'},
+  {'name': 'rampRM', 'alias': 'Ramp River Mile', 'type': 'esriFieldTypeDouble'},
+  {'name': 'rampRiver', 'alias': 'Ramp River', 'type': 'esriFieldTypeString'},
+  {'name': 'rampFreeboardToday', 'alias': 'Ramp Freeboard Today', 'type': 'esriFieldTypeDouble'},
+  {'name': 'rampFreeboard7Day', 'alias': 'Ramp Freeboard 7Day', 'type': 'esriFieldTypeDouble'}],
   'geometryType': '',
   'features': []
 };
@@ -68,8 +68,8 @@ for (var feat in brFs) {
       'rampTopStage': Round(rampStageOverPool,2),
       'rampRM': Round(feat['RIVERMILE'],1),
       'rampRiver': feat['WATERWAY'],
-      'rampFreeboardToday': Round((upGageStageOverPool-((upGageRM-(Round(feat['RIVERMILE'],1)))*reachSlope))-rampStageOverPool,2),
-      'rampFreeboard7Day': Round((upGageStageOverPool7Day-((upGageRM-(Round(feat['RIVERMILE'],1)))*reachSlope7Day))-rampStageOverPool,2)
+      'rampFreeboardToday': Round(rampStageOverPool-(upGageStageOverPool-((upGageRM-(Round(feat['RIVERMILE'],1)))*reachSlope)),2),
+      'rampFreeboard7Day': Round(rampStageOverPool-(upGageStageOverPool7Day-((upGageRM-(Round(feat['RIVERMILE'],1)))*reachSlope7Day)),2)
     }
   }
   index++;
