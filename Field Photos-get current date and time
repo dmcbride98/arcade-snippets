@@ -1,0 +1,1 @@
+IIf(IsEmpty($feature.collectDate), Now(), $feature.collectDate)
