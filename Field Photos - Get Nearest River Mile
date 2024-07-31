@@ -1,0 +1,15 @@
+if (IsEmpty(Geometry($feature))) { return null }
+if (IsEmpty($feature.riverMile)){
+  var searchDist = 26400;
+  var mileMarkers = Intersects(FeatureSetByName($map, 'River Miles', ['WTWDIS']), Buffer( $feature, searchDist, "feet"));
+  var nearestMarker;
+  var min_dist = 26500;
+  for (var f in mileMarkers){
+    var markerDist = Round(Distance(f, $feature, 'feet'),2);
+    if (markerDist < min_dist) {
+      nearestMarker = f.WTWDIS;
+      min_dist = markerDist;
+    }
+  }
+  return Round(nearestMarker,1)
+} else {return $feature.riverMile}
