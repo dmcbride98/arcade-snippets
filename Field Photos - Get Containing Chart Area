@@ -1,0 +1,7 @@
+var charts = FeatureSetByName($map, 'IENC Charts', ['Source_Dataset'])
+var nearestChart = First(Intersects($feature, charts));
+if (!IsEmpty(nearestChart)) {
+  return nearestChart['Source_Dataset']
+} else {
+  return null
+}
