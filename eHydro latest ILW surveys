@@ -1,14 +1,8 @@
-// Uses the public eHydro survey polygon feature layer to create a customized list of surveys
-
-// Create feature set from the eHydro layer
+// Actually this is for the Upper Mississippi River
 var portal = Portal('https://www.arcgis.com');
 var fs = FeatureSetByPortalItem(portal, '80a394bae6b547f1b5788074261e11f1',0,['surveyjobidpk','surveytype','channelareaidfk','usacedistrictcode','surveydatestart','plotsheetlocation'],false);
-
-// Filter the feature set to only include MVR surveys in Illinois Waterway channels (does not include dam scour surveys)
-var mvrStr = 'CEMVR_IL%';
+var mvrStr = 'CEMVR_UM%';
 var filteredFs = Filter(fs, 'channelareaidfk LIKE @mvrStr');
-
-// Define schema for final list container as dictionary
 var displayDict = {
   'fields': [{'name': 'surveyName', 'type': 'esriFieldTypeString'},
   {'name': 'surveyDate', 'type': 'esriFieldTypeString'},
@@ -22,7 +16,6 @@ var displayDict = {
   'features': []
 };
 
-// Define lookup dictionaries for survey type and pool/channel codes
 var surveyTypeDict = {
   'BD': 'Before Dredging',
   'AD': 'After Dredging',
@@ -31,19 +24,21 @@ var surveyTypeDict = {
 }
 
 var surveyPoolDict = {
-  'AL': 'Alton Pool',
-  'LA': 'LaGrange Pool',
-  'PE': 'Peoria Pool',
-  'SR': 'Starved Rock Pool',
-  'MA': 'Marseilles Pool',
-  'DR': 'Dresden Island Pool',
-  'BR': 'Brandon Road Pool',
-  'LP': 'Lockport Pool',
-  'CS': 'Cal Sag Channel',
+  '11': 'Pool 11',
+  '12': 'Pool 12',
+  '13': 'Pool 13',
+  '14': 'Pool 14',
+  '15': 'Pool 15',
+  '16': 'Pool 16',
+  '17': 'Pool 17',
+  '18': 'Pool 18',
+  '19': 'Pool 19',
+  '20': 'Pool 20',
+  '21': 'Pool 21',
+  '22': 'Pool 22',
+  '24': 'Pool 24',
   'DIS': 'OLD SURVEY'
 }
-
-// Build custom list from feature set attributes
 
 var index = 0;
 
@@ -61,3 +56,6 @@ for (var feature in filteredFs) {
     }
   }
   index++;
+}
+
+return FeatureSet(displayDict);
